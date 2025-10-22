@@ -75,9 +75,7 @@ def error(job, message, code=1):
 
 def start(job, data):
     # Make sure we are working with an existing SIP record
-    try:
-        models.SIP.objects.get(pk=data.uuid)
-    except models.SIP.DoesNotExist:
+    if not models.SIP.objects.filter(pk=data.uuid).exists():
         return error(job, "UUID not recognized")
 
     # Get directory
@@ -103,6 +101,12 @@ def start(job, data):
         access = models.Access.objects.get(sipuuid=data.uuid)
     except:  # First time this job is called, create new Access record
         access = models.Access(sipuuid=data.uuid)
+        # Look for access system ID
+        transfers = models.Transfer.objects.filter(file__sip_id=data.uuid).distinct()
+        if transfers.count() == 1:
+            access.target = cPickle.dumps({
+                "target": transfers[0].access_system_id
+            })
         access.save()
 
     # The target columns contents a serialized Python dictionary
